@@ -1,4 +1,4 @@
-<!-- :::artifact{identifier="timeline" type="text/vue" title="src/components/Timeline.vue"} -->
+<!-- :::artifact{identifier="timeline-update" type="text/vue" title="src/components/Timeline.vue"} -->
 <template>
     <div class="timeline-container">
         <div ref="timelineRef" class="timeline h-16 bg-gray-200 rounded relative" @mousedown="handleMouseDown"
@@ -19,14 +19,22 @@
                     class="absolute -top-7 right-0 bg-red-500 text-white px-2 py-1 rounded text-sm">
                     X
                 </button>
+
+                <!-- Time tooltip -->
+                <div class="absolute -bottom-6 left-0 text-xs bg-gray-800 text-white px-2 py-1 rounded">
+                    {{ formatTimecode(region.start) }}
+                </div>
+                <div class="absolute -bottom-6 right-0 text-xs bg-gray-800 text-white px-2 py-1 rounded">
+                    {{ formatTimecode(region.end) }}
+                </div>
             </div>
 
             <!-- Playhead -->
-            <div class="absolute h-full w-1 bg-red-500 pointer-events-none"
-                :style="{ left: `${(currentTime / duration) * 100}%` }"></div>
+            <div class="absolute h-full w-1 bg-red-500 pointer-events-none transition-all duration-75"
+                :style="{ left: `${(currentTimeDisplay / duration) * 100}%` }"></div>
 
             <!-- Hover indicator -->
-            <div v-if="isHovering" class="absolute h-full w-1 bg-gray-500 opacity-50"
+            <div v-if="isHovering && !isDragging && !isSelecting" class="absolute h-full w-1 bg-gray-500 opacity-50"
                 :style="{ left: `${(hoverTime / duration) * 100}%` }"></div>
         </div>
     </div>
@@ -43,13 +51,34 @@ export default {
         const timelineRef = ref(null)
         const selectionStart = ref(null)
         const isSelecting = ref(false)
+        const isDragging = ref(false)
+        const isHovering = ref(false)
         const dragData = ref({ regionIndex: null, handle: null })
+
+        // Compute the display time (either current time or drag time)
+        const currentTimeDisplay = computed(() => {
+            return isDragging.value || isSelecting.value
+                ? store.state.hoverTime
+                : store.state.currentTime
+        })
 
         const currentTime = computed(() => store.state.currentTime)
         const duration = computed(() => store.state.duration)
         const regions = computed(() => store.state.regions)
-        const isHovering = computed(() => store.state.isHovering)
         const hoverTime = computed(() => store.state.hoverTime)
+
+        const formatTimecode = (time) => {
+            const hours = Math.floor(time / 3600)
+            const minutes = Math.floor((time % 3600) / 60)
+            const seconds = Math.floor(time % 60)
+            const frames = Math.floor((time % 1) * 30) // Assuming 30fps
+
+            return `${hours.toString().padStart(2, '0')}:${minutes
+                .toString()
+                .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${frames
+                    .toString()
+                    .padStart(2, '0')}`
+        }
 
         const getTimeFromEvent = (event) => {
             const rect = timelineRef.value.getBoundingClientRect()
@@ -60,6 +89,7 @@ export default {
         const handleMouseMove = (event) => {
             const time = getTimeFromEvent(event)
             store.commit('SET_HOVER_TIME', time)
+            isHovering.value = true
 
             if (isSelecting.value) {
                 const start = Math.min(selectionStart.value, time)
@@ -76,7 +106,7 @@ export default {
             }
 
             // Update video time while scrubbing
-            if (!isSelecting.value && !store.state.isDragging) {
+            if (!isSelecting.value) {
                 store.commit('SET_CURRENT_TIME', time)
             }
         }
@@ -85,7 +115,11 @@ export default {
             const time = getTimeFromEvent(event)
             selectionStart.value = time
             isSelecting.value = true
+            isDragging.value = true
             store.commit('SET_IS_DRAGGING', true)
+
+            // Pause video while dragging
+            store.commit('SET_PLAYING', false)
         }
 
         const handleMouseUp = () => {
@@ -101,15 +135,20 @@ export default {
                     }
                 }
             }
+            isDragging.value = false
             store.commit('SET_IS_DRAGGING', false)
         }
 
         const handleMouseLeave = () => {
-            store.commit('SET_IS_HOVERING', false)
+            isHovering.value = false
+            if (!isDragging.value) {
+                store.commit('SET_IS_DRAGGING', false)
+            }
         }
 
         const startDraggingHandle = (index, handle) => {
             dragData.value = { regionIndex: index, handle }
+            isDragging.value = true
             store.commit('SET_IS_DRAGGING', true)
         }
 
@@ -120,16 +159,19 @@ export default {
         return {
             timelineRef,
             currentTime,
+            currentTimeDisplay,
             duration,
             regions,
             isHovering,
+            isDragging,
             hoverTime,
             handleMouseMove,
             handleMouseDown,
             handleMouseUp,
             handleMouseLeave,
             startDraggingHandle,
-            removeRegion
+            removeRegion,
+            formatTimecode
         }
     }
 }
@@ -139,5 +181,10 @@ export default {
 .timeline {
     cursor: pointer;
     user-select: none;
+}
+
+/* Add smooth transition for playhead */
+.timeline .playhead {
+    transition: left 0.1s linear;
 }
 </style>
