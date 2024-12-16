@@ -9,15 +9,16 @@
             </button>
 
             <!-- Timecode Display -->
-            <div class="text-mono space-x-2 bg-gray-500 text-s p-2 rounded">
-                <span class="current-time bg-red-500 text-white text-s p-1 rounded">{{ formatTimecode(currentTime) }}</span>
+            <div class="text-mono space-x-2 bg-gray-200 text-s p-2 rounded w-[180px]">
+                <span class="current-time bg-red-500 text-white text-s p-1 rounded">{{ formatTimecode(currentTime)
+                    }}</span>
                 <span class="text-gray-800">/</span>
                 <span class="duration">{{ formatTimecode(duration) }}</span>
             </div>
 
             <!-- Hover Time Display -->
-            <div v-if="isHovering" class="text-mono text-gray-900">
-                Hover: {{ formatTimecode(hoverTime) }}
+            <div class="text-mono text-left text-gray-700">
+                <span>Please select the regions of the video you found most important to your investigation.</span>
             </div>
         </div>
     </div>
