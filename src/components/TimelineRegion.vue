@@ -1,43 +1,60 @@
-<!-- :::artifact{identifier="timeline-region" type="text/vue" title="src/components/TimelineRegion.vue"} -->
+:::artifact{identifier="timeline-region" type="text/vue" title="src/components/TimelineRegion.vue"}
 <template>
-    <div class="absolute h-full bg-blue-200 opacity-50 group" :style="{
+    <div class="absolute h-full group" :style="{
         left: `${(start / duration) * 100}%`,
         width: `${((end - start) / duration) * 100}%`
-    }">
-        <!-- Left handle -->
-        <div class="absolute left-0 h-full w-2 cursor-ew-resize bg-blue-500 opacity-75 hover:opacity-100"
-            @mousedown.stop="startDragging('start')">
-            <div class="absolute bottom-full left-0 mb-1 bg-black text-white text-xs p-1 rounded whitespace-nowrap"
-                :class="{ 'opacity-0': !isDragging || dragHandle !== 'start' }">
-                {{ formatTimecode(start) }}
+    }" @mousedown.stop="handleRegionClick">
+        <!-- Region background -->
+        <div class="absolute inset-0 bg-blue-200 opacity-50"></div>
+
+        <!-- Left handle with drag area -->
+        <div class="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize handle-area"
+            @mousedown.stop="startHandleDrag('start')">
+            <!-- Visual handle indicator -->
+            <div class="absolute left-0 h-full w-1 bg-blue-600 opacity-75 group-hover:opacity-100">
+                <!-- Left handle tooltip -->
+                <div class="absolute bottom-full left-0 mb-1 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap transform -translate-x-1/2"
+                    :class="{ 'opacity-100': isDragging && activeHandle === 'start', 'opacity-0': !isDragging || activeHandle !== 'start' }">
+                    {{ formatTimecode(start) }}
+                </div>
             </div>
         </div>
 
-        <!-- Right handle -->
-        <div class="absolute right-0 h-full w-2 cursor-ew-resize bg-blue-500 opacity-75 hover:opacity-100"
-            @mousedown.stop="startDragging('end')">
-            <div class="absolute bottom-full right-0 mb-1 bg-black text-white text-xs p-1 rounded whitespace-nowrap"
-                :class="{ 'opacity-0': !isDragging || dragHandle !== 'end' }">
-                {{ formatTimecode(end) }}
+        <!-- Right handle with drag area -->
+        <div class="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize handle-area"
+            @mousedown.stop="startHandleDrag('end')">
+            <!-- Visual handle indicator -->
+            <div class="absolute right-0 h-full w-1 bg-blue-600 opacity-75 group-hover:opacity-100">
+                <!-- Right handle tooltip -->
+                <div class="absolute bottom-full right-0 mb-1 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap transform translate-x-1/2"
+                    :class="{ 'opacity-100': isDragging && activeHandle === 'end', 'opacity-0': !isDragging || activeHandle !== 'end' }">
+                    {{ formatTimecode(end) }}
+                </div>
             </div>
         </div>
 
-        <!-- Region label and remove button -->
+        <!-- Region info and controls -->
         <div
-            class="absolute -top-6 right-0 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <span class="text-xs text-gray-600">
+            class="absolute -top-8 right-0 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span class="text-xs bg-gray-800 text-white px-2 py-1 rounded">
                 {{ formatTimecode(end - start) }}
             </span>
-            <button @click="$emit('remove')"
-                class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 transition-colors">
+            <button @click.stop="$emit('remove')"
+                class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors">
                 Remove
             </button>
+        </div>
+
+        <!-- Center duration display (visible while dragging) -->
+        <div v-if="isDragging" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+             bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+            {{ formatTimecode(end - start) }}
         </div>
     </div>
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 
 export default {
@@ -57,17 +74,76 @@ export default {
         }
     },
     emits: ['update:start', 'update:end', 'remove'],
-    setup(props) {
+
+    setup(props, { emit }) {
         const store = useStore()
         const isDragging = ref(false)
-        const dragHandle = ref(null)
+        const activeHandle = ref(null)
+        const startPosition = ref(null)
+        const originalStart = ref(null)
+        const originalEnd = ref(null)
 
         const duration = computed(() => store.state.duration)
 
-        const startDragging = (handle) => {
+        const startHandleDrag = (handle) => {
             isDragging.value = true
-            dragHandle.value = handle
+            activeHandle.value = handle
+            startPosition.value = null
+            originalStart.value = props.start
+            originalEnd.value = props.end
             store.commit('SET_IS_DRAGGING', true)
+
+            // Add global mouse event listeners
+            document.addEventListener('mousemove', handleMouseMove)
+            document.addEventListener('mouseup', handleMouseUp)
+        }
+
+        const handleMouseMove = (event) => {
+            if (!isDragging.value) return
+
+            const timelineEl = event.target.closest('.timeline')
+            if (!timelineEl) return
+
+            const rect = timelineEl.getBoundingClientRect()
+            const percentage = (event.clientX - rect.left) / rect.width
+            const newTime = Math.max(0, Math.min(percentage * duration.value, duration.value))
+
+            if (startPosition.value === null) {
+                startPosition.value = newTime
+            }
+
+            const timeDiff = newTime - startPosition.value
+
+            if (activeHandle.value === 'start') {
+                const newStart = Math.max(0, Math.min(originalStart.value + timeDiff, props.end - 0.1))
+                emit('update:start', newStart)
+            } else if (activeHandle.value === 'end') {
+                const newEnd = Math.min(duration.value, Math.max(props.start + 0.1, originalEnd.value + timeDiff))
+                emit('update:end', newEnd)
+            }
+
+            // Update current time while dragging
+            store.commit('SET_CURRENT_TIME', newTime)
+        }
+
+        const handleMouseUp = () => {
+            isDragging.value = false
+            activeHandle.value = null
+            store.commit('SET_IS_DRAGGING', false)
+
+            // Remove global mouse event listeners
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseup', handleMouseUp)
+        }
+
+        const handleRegionClick = (event) => {
+            // Only handle clicks on the region body, not the handles
+            if (!event.target.closest('.handle-area')) {
+                const rect = event.target.closest('.timeline').getBoundingClientRect()
+                const percentage = (event.clientX - rect.left) / rect.width
+                const newTime = percentage * duration.value
+                store.commit('SET_CURRENT_TIME', newTime)
+            }
         }
 
         const formatTimecode = (time) => {
@@ -82,13 +158,36 @@ export default {
                         .toString().padStart(2, '0')}`
         }
 
+        // Clean up event listeners
+        onUnmounted(() => {
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseup', handleMouseUp)
+        })
+
         return {
             isDragging,
-            dragHandle,
+            activeHandle,
             duration,
-            startDragging,
+            startHandleDrag,
+            handleRegionClick,
             formatTimecode
         }
     }
 }
 </script>
+
+<style scoped>
+.handle-area {
+    transition: opacity 0.2s;
+    opacity: 0;
+}
+
+.group:hover .handle-area {
+    opacity: 1;
+}
+
+/* Prevent text selection while dragging */
+.handle-area {
+    user-select: none;
+}
+</style>
