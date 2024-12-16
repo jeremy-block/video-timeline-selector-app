@@ -9,15 +9,16 @@
             </button>
 
             <!-- Timecode Display -->
-            <div class="text-mono space-x-2">
-                <span class="current-time">{{ formatTimecode(currentTime) }}</span>
-                <span>/</span>
+            <div class="text-mono space-x-2 bg-gray-200 text-s p-2 rounded w-[180px]">
+                <span class="current-time bg-red-500 text-white text-s p-1 rounded">{{ formatTimecode(currentTime)
+                    }}</span>
+                <span class="text-gray-800">/</span>
                 <span class="duration">{{ formatTimecode(duration) }}</span>
             </div>
 
             <!-- Hover Time Display -->
-            <div v-if="isHovering" class="text-mono text-gray-600">
-                Hover: {{ formatTimecode(hoverTime) }}
+            <div class="text-mono text-left text-gray-700">
+                <span>Please select the regions of the video you found most important to your investigation.</span>
             </div>
         </div>
     </div>
@@ -26,6 +27,7 @@
 <script>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
+import { formatTimecode } from '../utils/formatTimecode'
 
 export default {
     name: 'VideoControls',
@@ -42,18 +44,6 @@ export default {
             store.dispatch('togglePlayback')
         }
 
-        const formatTimecode = (time) => {
-            const hours = Math.floor(time / 3600)
-            const minutes = Math.floor((time % 3600) / 60)
-            const seconds = Math.floor(time % 60)
-            const frames = Math.floor((time % 1) * 30) // Assuming 30fps
-
-            return `${hours.toString().padStart(2, '0')}:${minutes
-                .toString()
-                .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${frames
-                    .toString()
-                    .padStart(2, '0')}`
-        }
 
         return {
             currentTime,

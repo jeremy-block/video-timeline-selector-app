@@ -13,7 +13,7 @@
     </div>
 
     <!-- Video Player Page -->
-    <div v-else class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+    <div v-else class="mx-auto bg-white rounded-lg shadow-lg p-6">
       <VideoPlayer />
       <VideoControls />
       <Timeline />

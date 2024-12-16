@@ -1,84 +1,60 @@
-<!-- :::artifact{identifier="timeline-update" type="text/vue" title="src/components/Timeline.vue"} -->
+<!-- :::artifact{identifier="timeline-updated" type="text/vue" title="src/components/Timeline.vue"} -->
 <template>
     <div class="timeline-container">
         <div ref="timelineRef" class="timeline h-16 bg-gray-200 rounded relative" @mousedown="handleMouseDown"
             @mousemove="handleMouseMove" @mouseup="handleMouseUp" @mouseleave="handleMouseLeave">
+            <!-- Background grid for visual reference -->
+            <div class="absolute inset-0 grid grid-cols-12 gap-0">
+                <div v-for="n in 12" :key="n" class="border-l border-gray-300 h-full first:border-l-0"></div>
+            </div>
+
             <!-- Regions -->
-            <div v-for="(region, index) in regions" :key="index" class="absolute h-full bg-blue-200 opacity-50" :style="{
-                left: `${(region.start / duration) * 100}%`,
-                width: `${((region.end - region.start) / duration) * 100}%`
-            }">
-                <!-- Region handles -->
-                <div class="absolute left-0 h-full w-2 cursor-ew-resize bg-blue-500"
-                    @mousedown.stop="startDraggingHandle(index, 'start')"></div>
-                <div class="absolute right-0 h-full w-2 cursor-ew-resize bg-blue-500"
-                    @mousedown.stop="startDraggingHandle(index, 'end')"></div>
+            <TimelineRegion v-for="(region, index) in regions" :key="index" :start="region.start" :end="region.end"
+                :index="index" @update:start="updateRegionStart(index, $event)"
+                @update:end="updateRegionEnd(index, $event)" @remove="removeRegion(index)" />
 
-                <!-- Remove button -->
-                <button @click="removeRegion(index)"
-                    class="absolute -top-7 right-0 bg-red-500 text-white px-2 py-1 rounded text-sm">
-                    X
-                </button>
 
-                <!-- Time tooltip -->
-                <div class="absolute -bottom-6 left-0 text-xs bg-gray-800 text-white px-2 py-1 rounded">
-                    {{ formatTimecode(region.start) }}
-                </div>
-                <div class="absolute -bottom-6 right-0 text-xs bg-gray-800 text-white px-2 py-1 rounded">
-                    {{ formatTimecode(region.end) }}
+            <!-- Current time playhead -->
+            <div class="absolute h-full w-0.5 bg-red-500 pointer-events-none"
+                :style="{ left: `${(currentTime / duration) * 100}%` }">
+                <div
+                    class="absolute top-full left-0 mt-1 bg-red-500 text-white text-xs p-1 rounded transform -translate-x-1/2">
+                    {{ formatTimecode(currentTime) }}
                 </div>
             </div>
 
-            <!-- Playhead -->
-            <div class="absolute h-full w-1 bg-red-500 pointer-events-none transition-all duration-75"
-                :style="{ left: `${(currentTimeDisplay / duration) * 100}%` }"></div>
-
-            <!-- Hover indicator -->
-            <div v-if="isHovering && !isDragging && !isSelecting" class="absolute h-full w-1 bg-gray-500 opacity-50"
-                :style="{ left: `${(hoverTime / duration) * 100}%` }"></div>
+            <!-- Selection overlay -->
+            <div v-if="isSelecting" class="absolute h-full bg-blue-300 opacity-30" :style="{
+                left: `${(Math.min(selectionStart, selectionEnd) / duration) * 100}%`,
+                width: `${(Math.abs(selectionEnd - selectionStart) / duration) * 100}%`
+            }"></div>
         </div>
     </div>
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useStore } from 'vuex'
+import TimelineRegion from './TimelineRegion.vue'
+import { formatTimecode } from '../utils/formatTimecode'
 
 export default {
     name: 'Timeline',
+    components: {
+        TimelineRegion
+    },
     setup() {
         const store = useStore()
         const timelineRef = ref(null)
-        const selectionStart = ref(null)
         const isSelecting = ref(false)
-        const isDragging = ref(false)
+        const selectionStart = ref(0)
+        const selectionEnd = ref(0)
         const isHovering = ref(false)
-        const dragData = ref({ regionIndex: null, handle: null })
-
-        // Compute the display time (either current time or drag time)
-        const currentTimeDisplay = computed(() => {
-            return isDragging.value || isSelecting.value
-                ? store.state.hoverTime
-                : store.state.currentTime
-        })
 
         const currentTime = computed(() => store.state.currentTime)
         const duration = computed(() => store.state.duration)
         const regions = computed(() => store.state.regions)
         const hoverTime = computed(() => store.state.hoverTime)
-
-        const formatTimecode = (time) => {
-            const hours = Math.floor(time / 3600)
-            const minutes = Math.floor((time % 3600) / 60)
-            const seconds = Math.floor(time % 60)
-            const frames = Math.floor((time % 1) * 30) // Assuming 30fps
-
-            return `${hours.toString().padStart(2, '0')}:${minutes
-                .toString()
-                .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${frames
-                    .toString()
-                    .padStart(2, '0')}`
-        }
 
         const getTimeFromEvent = (event) => {
             const rect = timelineRef.value.getBoundingClientRect()
@@ -91,85 +67,80 @@ export default {
             store.commit('SET_HOVER_TIME', time)
             isHovering.value = true
 
+            // Update selection if we're currently selecting
             if (isSelecting.value) {
-                const start = Math.min(selectionStart.value, time)
-                const end = Math.max(selectionStart.value, time)
-
-                if (regions.value.length > 0 && regions.value[regions.value.length - 1].temporary) {
-                    store.commit('UPDATE_REGION', {
-                        index: regions.value.length - 1,
-                        region: { start, end, temporary: true }
-                    })
-                } else {
-                    store.commit('ADD_REGION', { start, end, temporary: true })
-                }
+                selectionEnd.value = time
+                // Update current time while dragging
+                store.commit('SET_CURRENT_TIME', time)
             }
 
-            // Update video time while scrubbing
-            if (!isSelecting.value) {
+            // Update current time while hovering (if not selecting)
+            if (!isSelecting.value && !store.state.isDragging) {
                 store.commit('SET_CURRENT_TIME', time)
             }
         }
 
         const handleMouseDown = (event) => {
             const time = getTimeFromEvent(event)
-            selectionStart.value = time
             isSelecting.value = true
-            isDragging.value = true
+            selectionStart.value = time
+            selectionEnd.value = time
             store.commit('SET_IS_DRAGGING', true)
-
-            // Pause video while dragging
-            store.commit('SET_PLAYING', false)
         }
 
         const handleMouseUp = () => {
             if (isSelecting.value) {
-                isSelecting.value = false
-                if (regions.value.length > 0) {
-                    const lastRegion = regions.value[regions.value.length - 1]
-                    if (lastRegion.temporary) {
-                        store.commit('UPDATE_REGION', {
-                            index: regions.value.length - 1,
-                            region: { ...lastRegion, temporary: false }
-                        })
-                    }
+                if (Math.abs(selectionEnd.value - selectionStart.value) > 0.1) {
+                    store.commit('ADD_REGION', {
+                        start: Math.min(selectionStart.value, selectionEnd.value),
+                        end: Math.max(selectionStart.value, selectionEnd.value)
+                    })
                 }
+                isSelecting.value = false
             }
-            isDragging.value = false
             store.commit('SET_IS_DRAGGING', false)
         }
 
         const handleMouseLeave = () => {
             isHovering.value = false
-            if (!isDragging.value) {
-                store.commit('SET_IS_DRAGGING', false)
+            if (isSelecting.value) {
+                handleMouseUp()
             }
         }
 
-        const startDraggingHandle = (index, handle) => {
-            dragData.value = { regionIndex: index, handle }
-            isDragging.value = true
-            store.commit('SET_IS_DRAGGING', true)
+        const updateRegionStart = (index, time) => {
+            const region = { ...regions.value[index] }
+            region.start = Math.min(time, region.end - 0.1)
+            store.commit('UPDATE_REGION', { index, region })
+        }
+
+        const updateRegionEnd = (index, time) => {
+            const region = { ...regions.value[index] }
+            region.end = Math.max(time, region.start + 0.1)
+            store.commit('UPDATE_REGION', { index, region })
         }
 
         const removeRegion = (index) => {
             store.commit('REMOVE_REGION', index)
         }
 
+
         return {
             timelineRef,
             currentTime,
-            currentTimeDisplay,
             duration,
             regions,
+            isSelecting,
+            selectionStart,
+            selectionEnd,
             isHovering,
-            isDragging,
             hoverTime,
             handleMouseMove,
             handleMouseDown,
             handleMouseUp,
             handleMouseLeave,
-            startDraggingHandle,
+            updateRegionStart,
+            updateRegionEnd,
             removeRegion,
             formatTimecode
         }
@@ -183,8 +154,8 @@ export default {
     user-select: none;
 }
 
-/* Add smooth transition for playhead */
-.timeline .playhead {
-    transition: left 0.1s linear;
+.timeline-container {
+    position: relative;
+    margin: 2rem 0;
 }
 </style>
