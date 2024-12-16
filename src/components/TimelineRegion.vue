@@ -41,7 +41,7 @@
         <div
             class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
              bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            {{ formatTimecode(end - start) }}
+            {{ formatDurration(end - start) }}
         </div>
     </div>
 </template>
@@ -49,7 +49,7 @@
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
-import { formatTimecode } from '../utils/formatTimecode'
+import { formatTimecode, formatDurration } from '../utils/formatTimecode'
 
 export default {
     name: 'TimelineRegion',
@@ -152,7 +152,8 @@ export default {
             duration,
             startHandleDrag,
             handleRegionClick,
-            formatTimecode
+            formatTimecode,
+            formatDurration
         }
     }
 }
