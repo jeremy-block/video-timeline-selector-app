@@ -9,14 +9,14 @@
             </button>
 
             <!-- Timecode Display -->
-            <div class="text-mono space-x-2">
-                <span class="current-time">{{ formatTimecode(currentTime) }}</span>
-                <span>/</span>
+            <div class="text-mono space-x-2 bg-gray-500 text-s p-2 rounded">
+                <span class="current-time bg-red-500 text-white text-s p-1 rounded">{{ formatTimecode(currentTime) }}</span>
+                <span class="text-gray-800">/</span>
                 <span class="duration">{{ formatTimecode(duration) }}</span>
             </div>
 
             <!-- Hover Time Display -->
-            <div v-if="isHovering" class="text-mono text-gray-600">
+            <div v-if="isHovering" class="text-mono text-gray-900">
                 Hover: {{ formatTimecode(hoverTime) }}
             </div>
         </div>

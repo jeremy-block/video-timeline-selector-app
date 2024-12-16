@@ -25,20 +25,12 @@
             @mousedown.stop="startHandleDrag('end')">
             <!-- Visual handle indicator -->
             <div class="absolute right-0 h-full w-1 bg-blue-600 opacity-75 group-hover:opacity-100">
-                <!-- Right handle tooltip -->
-                <div class="absolute bottom-full right-0 mb-1 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap transform translate-x-1/2"
-                    :class="{ 'opacity-100': isDragging && activeHandle === 'end', 'opacity-0': !isDragging || activeHandle !== 'end' }">
-                    {{ formatTimecode(end) }}
-                </div>
             </div>
         </div>
 
         <!-- Region info and controls -->
         <div
             class="absolute -top-8 right-0 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <span class="text-xs bg-gray-800 text-white px-2 py-1 rounded">
-                {{ formatTimecode(end - start) }}
-            </span>
             <button @click.stop="$emit('remove')"
                 class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors">
                 Remove
@@ -46,8 +38,9 @@
         </div>
 
         <!-- Center duration display (visible while dragging) -->
-        <div v-if="isDragging" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
-             bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+        <div
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+             bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
             {{ formatTimecode(end - start) }}
         </div>
     </div>

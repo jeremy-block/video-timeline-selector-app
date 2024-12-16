@@ -13,14 +13,6 @@
                 :index="index" @update:start="updateRegionStart(index, $event)"
                 @update:end="updateRegionEnd(index, $event)" @remove="removeRegion(index)" />
 
-            <!-- Hover playhead (follows mouse) -->
-            <div v-if="isHovering" class="absolute h-full w-0.5 bg-gray-400 pointer-events-none"
-                :style="{ left: `${(hoverTime / duration) * 100}%` }">
-                <div
-                    class="absolute bottom-full left-0 mb-1 bg-black text-white text-xs p-1 rounded transform -translate-x-1/2">
-                    {{ formatTimecode(hoverTime) }}
-                </div>
-            </div>
 
             <!-- Current time playhead -->
             <div class="absolute h-full w-0.5 bg-red-500 pointer-events-none"
