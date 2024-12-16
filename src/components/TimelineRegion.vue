@@ -1,4 +1,4 @@
-:::artifact{identifier="timeline-region" type="text/vue" title="src/components/TimelineRegion.vue"}
+<!-- :::artifact{identifier="timeline-region" type="text/vue" title="src/components/TimelineRegion.vue"} -->
 <template>
     <div class="absolute h-full group" :style="{
         left: `${(start / duration) * 100}%`,
@@ -56,6 +56,7 @@
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
+import { formatTimecode } from '../utils/formatTimecode'
 
 export default {
     name: 'TimelineRegion',
@@ -144,18 +145,6 @@ export default {
                 const newTime = percentage * duration.value
                 store.commit('SET_CURRENT_TIME', newTime)
             }
-        }
-
-        const formatTimecode = (time) => {
-            const hours = Math.floor(time / 3600)
-            const minutes = Math.floor((time % 3600) / 60)
-            const seconds = Math.floor(time % 60)
-            const frames = Math.floor((time % 1) * 30)
-
-            return `${hours.toString().padStart(2, '0')}:${minutes
-                .toString().padStart(2, '0')}:${seconds
-                    .toString().padStart(2, '0')}:${frames
-                        .toString().padStart(2, '0')}`
         }
 
         // Clean up event listeners

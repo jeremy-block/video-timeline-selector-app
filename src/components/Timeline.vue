@@ -44,6 +44,7 @@
 import { ref, computed, watch } from 'vue'
 import { useStore } from 'vuex'
 import TimelineRegion from './TimelineRegion.vue'
+import { formatTimecode } from '../utils/formatTimecode'
 
 export default {
     name: 'Timeline',
@@ -131,17 +132,6 @@ export default {
             store.commit('REMOVE_REGION', index)
         }
 
-        const formatTimecode = (time) => {
-            const hours = Math.floor(time / 3600)
-            const minutes = Math.floor((time % 3600) / 60)
-            const seconds = Math.floor(time % 60)
-            const frames = Math.floor((time % 1) * 30)
-
-            return `${hours.toString().padStart(2, '0')}:${minutes
-                .toString().padStart(2, '0')}:${seconds
-                    .toString().padStart(2, '0')}:${frames
-                        .toString().padStart(2, '0')}`
-        }
 
         return {
             timelineRef,

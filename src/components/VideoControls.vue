@@ -26,6 +26,7 @@
 <script>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
+import { formatTimecode } from '../utils/formatTimecode'
 
 export default {
     name: 'VideoControls',
@@ -42,18 +43,6 @@ export default {
             store.dispatch('togglePlayback')
         }
 
-        const formatTimecode = (time) => {
-            const hours = Math.floor(time / 3600)
-            const minutes = Math.floor((time % 3600) / 60)
-            const seconds = Math.floor(time % 60)
-            const frames = Math.floor((time % 1) * 30) // Assuming 30fps
-
-            return `${hours.toString().padStart(2, '0')}:${minutes
-                .toString()
-                .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${frames
-                    .toString()
-                    .padStart(2, '0')}`
-        }
 
         return {
             currentTime,
